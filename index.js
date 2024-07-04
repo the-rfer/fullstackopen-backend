@@ -46,7 +46,7 @@ function totalEntries() {
     return `<p>Phonebook has info for ${notes.length} people.</p>`;
 }
 
-function timestamp(x) {
+function timestamp() {
     const date = new Date();
     const options = {
         weekday: 'short',
@@ -58,18 +58,6 @@ function timestamp(x) {
         second: '2-digit',
         timeZoneName: 'long',
     };
-
-    const consoleOptions = {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZoneName: 'short',
-    };
-
-    if (x) return date.toLocaleString('en-US', consoleOptions);
 
     return `<p>${date.toLocaleDateString('en-US', options)}</p>`;
 }
@@ -100,13 +88,6 @@ app.delete('/api/persons/:id', (req, res) => {
 
     notes = notes.filter((note) => note.id !== id);
     res.status(204).end();
-
-    // console.log(
-    //     'User deleted: ',
-    //     JSON.stringify(userToDelete),
-    //     'Deleted at: ',
-    //     timestamp(1)
-    // );
 });
 
 app.post('/api/persons', (req, res) => {
@@ -128,13 +109,6 @@ app.post('/api/persons', (req, res) => {
 
     notes = notes.concat(newUser);
     res.json(newUser);
-
-    // console.log(
-    //     'New User created: ',
-    //     JSON.stringify(newUser),
-    //     'Created at: ',
-    //     timestamp(1)
-    // );
 });
 
 app.listen(PORT, () => {
