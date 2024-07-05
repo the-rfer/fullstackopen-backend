@@ -19,7 +19,7 @@ app.use(
     )
 );
 
-let notes = [
+let contacts = [
     {
         id: '1',
         name: 'Arto Hellas',
@@ -43,7 +43,7 @@ let notes = [
 ];
 
 function totalEntries() {
-    return `<p>Phonebook has info for ${notes.length} people.</p>`;
+    return `<p>Phonebook has info for ${contacts.length} people.</p>`;
 }
 
 function timestamp() {
@@ -63,7 +63,7 @@ function timestamp() {
 }
 
 app.get('/api/persons', (req, res) => {
-    res.json(notes);
+    res.json(contacts);
 });
 
 app.get('/info', (req, res) => {
@@ -72,9 +72,9 @@ app.get('/info', (req, res) => {
 
 app.get('/api/persons/:id', (req, res) => {
     const id = req.params.id;
-    const note = notes.find((note) => note.id === id);
-    if (note) {
-        res.json(note);
+    const contact = contacts.find((contact) => contact.id === id);
+    if (contact) {
+        res.json(contact);
     } else {
         res.status(404).end();
     }
@@ -83,10 +83,10 @@ app.get('/api/persons/:id', (req, res) => {
 app.delete('/api/persons/:id', (req, res) => {
     const id = req.params.id;
 
-    const userToDelete = notes.find((note) => note.id === id);
+    const userToDelete = contacts.find((contact) => contact.id === id);
     if (!userToDelete) return res.status(404).end();
 
-    notes = notes.filter((note) => note.id !== id);
+    contacts = contacts.filter((contact) => contact.id !== id);
     res.status(204).end();
 });
 
@@ -99,7 +99,7 @@ app.post('/api/persons', (req, res) => {
         });
     }
 
-    if (notes.find((note) => note.name === body.name)) {
+    if (contacts.find((contact) => contact.name === body.name)) {
         return res.status(400).json({
             error: 'name must be unique.',
         });
@@ -107,7 +107,7 @@ app.post('/api/persons', (req, res) => {
 
     const newUser = { id: v4(), name: body.name, number: body.number };
 
-    notes = notes.concat(newUser);
+    contacts = contacts.concat(newUser);
     res.json(newUser);
 });
 
