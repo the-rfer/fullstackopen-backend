@@ -1,14 +1,18 @@
+require('dotenv').config();
 const express = require('express');
-const { v4 } = require('uuid');
 const morgan = require('morgan');
 const cors = require('cors');
+const Contact = require('./models/contact');
+const mongoose = require('mongoose');
 
-const PORT = process.env.PORT || 3001;
-
+const PORT = process.env.PORT;
 const app = express();
+
+app.use(express.static('dist'));
 app.use(express.json());
 app.use(cors());
-app.use(express.static('dist'));
+
+mongoose.set('strictQuery', false);
 
 morgan.token('body', (req) => {
     if (req.method === 'POST') {
@@ -22,31 +26,9 @@ app.use(
     )
 );
 
-let contacts = [
-    {
-        id: '1',
-        name: 'Arto Hellas',
-        number: '040-123456',
-    },
-    {
-        id: '2',
-        name: 'Ada Lovelace',
-        number: '39-44-5323523',
-    },
-    {
-        id: '3',
-        name: 'Dan Abramov',
-        number: '12-43-234345',
-    },
-    {
-        id: '4',
-        name: 'Mary Poppendieck',
-        number: '39-23-6423122',
-    },
-];
-
-function totalEntries() {
-    return `<p>Phonebook has info for ${contacts.length} people.</p>`;
+async function totalEntries() {
+    const count = await Contact.countDocuments();
+    return `<p>Phonebook has info for ${count} people.</p>`;
 }
 
 function timestamp() {
@@ -65,35 +47,47 @@ function timestamp() {
     return `<p>${date.toLocaleDateString('en-US', options)}</p>`;
 }
 
-app.get('/api/persons', (req, res) => {
-    res.json(contacts);
+app.get('/api/persons', (_, res) => {
+    let contacts = [];
+
+    Contact.find({}).then((result) => {
+        result.forEach((contact) => {
+            contacts.push(contact);
+        });
+        res.json(contacts);
+    });
 });
 
-app.get('/info', (req, res) => {
-    res.send(totalEntries() + timestamp());
+app.get('/info', async (_, res) => {
+    const info = (await totalEntries()) + timestamp();
+    res.send(info);
 });
 
-app.get('/api/persons/:id', (req, res) => {
-    const id = req.params.id;
-    const contact = contacts.find((contact) => contact.id === id);
-    if (contact) {
-        res.json(contact);
-    } else {
-        res.status(404).end();
-    }
+app.get('/api/persons/:id', (req, res, next) => {
+    Contact.findById(req.params.id)
+        .then((result) => {
+            if (result) {
+                res.json(result);
+            } else {
+                res.status(404).send({ message: 'contact not found' });
+            }
+        })
+        .catch((error) => next(error));
 });
 
-app.delete('/api/persons/:id', (req, res) => {
-    const id = req.params.id;
-
-    const userToDelete = contacts.find((contact) => contact.id === id);
-    if (!userToDelete) return res.status(404).end();
-
-    contacts = contacts.filter((contact) => contact.id !== id);
-    res.status(204).end();
+app.delete('/api/persons/:id', (req, res, next) => {
+    Contact.findByIdAndDelete(req.params.id)
+        .then((result) => {
+            if (result) {
+                res.status(204).end();
+            } else {
+                res.status(404).end();
+            }
+        })
+        .catch((error) => next(error));
 });
 
-app.post('/api/persons', (req, res) => {
+app.post('/api/persons', (req, res, next) => {
     const body = req.body;
 
     if (!body.name || !body.number) {
@@ -102,17 +96,56 @@ app.post('/api/persons', (req, res) => {
         });
     }
 
-    if (contacts.find((contact) => contact.name === body.name)) {
-        return res.status(400).json({
-            error: 'name must be unique.',
-        });
-    }
+    const contact = new Contact({
+        name: body.name,
+        number: body.number,
+    });
 
-    const newUser = { id: v4(), name: body.name, number: body.number };
-
-    contacts = contacts.concat(newUser);
-    res.json(newUser);
+    contact
+        .save()
+        .then((result) => {
+            res.json(result);
+        })
+        .catch((error) => next(error));
 });
+
+app.put('/api/persons/:id', (req, res, next) => {
+    const { name, number } = req.body;
+
+    Contact.findByIdAndUpdate(
+        req.params.id,
+        { name, number },
+        { new: true, runValidators: true, context: 'query' }
+    )
+        .then((updatedContact) => {
+            res.json(updatedContact);
+        })
+        .catch((error) => next(error));
+});
+
+const unknownEndpoint = (req, res) => {
+    res.status(404).send({ error: 'unknown endpoint' });
+};
+
+app.use(unknownEndpoint);
+
+const errorHandler = (error, req, res, next) => {
+    console.error('ERROR NAME:', error.name);
+    console.error('ERROR MESSAGE:', error.message);
+
+    switch (error.name) {
+        case 'CastError':
+            return res.status(400).json({ error: 'malformatted id' });
+
+        case 'ValidationError':
+            return res.status(400).json({ error: error.message });
+
+        default:
+            next(error);
+    }
+};
+
+app.use(errorHandler);
 
 app.listen(PORT, () => {
     console.log(`Server running...\nListeing on port ${PORT}`);
